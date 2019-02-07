@@ -19,6 +19,7 @@ import glob
 import re
 from typing import List, Any
 from elit.component import Component
+
 __author__ = "Gary Lai, Jinho D. Choi"
 
 
@@ -107,21 +108,6 @@ class HashtagSegmenter(Component):
                         final_results.append(result)
                     else:
                         final_results = final_results + self.deal_with_text(result)
-                real_results = []
-                less_than_two_list = []
-                for result in final_results:
-                    if len(final_results) > 1:
-                        if len(result) <= 2 and result not in ["i", "a"] and result not in self.two_char_words:
-                            less_than_two_list.append(result)
-                        else:
-                            if len(less_than_two_list) > 0:
-                                real_results.append("".join(less_than_two_list))
-                                less_than_two_list = []
-                            real_results.append(result)
-                if len(less_than_two_list) > 0:
-                    real_results.append("".join(less_than_two_list))
-                if real_results:
-                    final_results = real_results
                 return self.recover_the_case(final_results, upper_index)
             except:
                 pass
@@ -240,7 +226,7 @@ class HashtagSegmenter(Component):
 
         # calculate the result based on 1-2gram
         segmentation_list = self.generate_possible_segmentation(text)
-        if True:
+        if text not in self.n_grams[0]:
             results = self.get_results(segmentation_list)
 
             if len(results) == 0:
@@ -280,6 +266,33 @@ class HashtagSegmenter(Component):
                 real_results.append("".join(less_than_two_list))
             if real_results:
                 results = real_results
+
+            # filter one
+            known_flag = 0
+            less_than_two_flag = 0
+            for result in results:
+                if len(results) > 1:
+                    if len(result) == 2 and result not in self.two_char_words and result.isdigit() is False:
+                        less_than_two_flag += 1
+                    elif len(result) > 4 and result in self.n_grams[0]:
+                        known_flag += 1
+            if known_flag == 0 and less_than_two_flag >= 1:
+                return [text]
+
+            # filter two
+            known_flag = 0
+            less_than_two_flag = 0
+            for result in results:
+                if len(results) > 1:
+                    if len(result) <= 1 and result not in ["i", "a"]:
+                        less_than_two_flag += 1
+                    elif len(result) > 5 and result in self.n_grams[0]:
+                        known_flag += 1
+            if known_flag == 0 and less_than_two_flag >= 1:
+                return [text]
+
+        else:
+            results = [text]
         return results
 
     def check_continues(self, index_list: list):
