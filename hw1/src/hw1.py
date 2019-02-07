@@ -37,7 +37,7 @@ class HashtagSegmenter(Component):
             with open(filename) as st:
                 for line in st:
                     self.two_char_words.append(line.strip("\n"))
-        print(self.two_char_words)
+        #print(self.two_char_words)
         self.parsedDict = {}
         # TODO: initialize resources
         self.n_grams = [{}, {}, {}, {}, {}, {}]
@@ -45,12 +45,12 @@ class HashtagSegmenter(Component):
         self.n_grams_total_word_count = [0, 0, 0, 0, 0, 0]
         self.n_grams_minimum_appearance_count = [0, 0, 0, 0, 0, 0]
         if len(ngram_filenames) == 0:
-            print("there is no gram files")
+            print("error: there is no gram files")
             exit(0)
         for filename in ngram_filenames:
-            print(filename)
+            #print(filename)
             gram_n = int(filename.split("/")[-1].split("gram")[0])
-            print(filename.split("/")[2].split("gram")[0])
+            #print(filename.split("/")[2].split("gram")[0])
             n_gram_dict = {}
             total_count = 0
             total_word_count = 0
