@@ -44,6 +44,7 @@ class HashtagSegmenter(Component):
         self.n_grams_total_appearance_count = [0, 0, 0, 0, 0, 0]
         self.n_grams_total_word_count = [0, 0, 0, 0, 0, 0]
         self.n_grams_minimum_appearance_count = [0, 0, 0, 0, 0, 0]
+        assert (len(ngram_filenames) > 0, "there is no grams files, please add them to res directory")
         for filename in ngram_filenames:
             print(filename)
             gram_n = int(filename.split("/")[-1].split("gram")[0])
