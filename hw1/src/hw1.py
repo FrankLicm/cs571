@@ -156,6 +156,21 @@ class HashtagSegmenter(Component):
                         final_results.append(result)
                     else:
                         final_results = final_results + self.deal_with_text(result)
+                real_results = []
+                less_than_two_list = []
+                for result in final_results:
+                    if len(final_results) > 1:
+                        if len(result) <= 2 and result not in ["i", "a"] and result not in self.two_char_words:
+                            less_than_two_list.append(result)
+                        else:
+                            if len(less_than_two_list) > 0:
+                                real_results.append("".join(less_than_two_list))
+                                less_than_two_list = []
+                            real_results.append(result)
+                if len(less_than_two_list) > 0:
+                    real_results.append("".join(less_than_two_list))
+                if real_results:
+                    final_results = real_results
                 return self.recover_the_case(final_results, upper_index)
             except:
                 pass
