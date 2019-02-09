@@ -295,7 +295,19 @@ class HashtagSegmenter(Component):
                 return [text]
 
         else:
-            results = [text]
+            results1 = [text]
+            results2 = self.get_results(segmentation_list)
+            if " ".join(results2) in self.bi_gram_token_count:
+                results = results2
+            else:
+                flag = 1
+                for result  in results2:
+                    if result not in self.n_grams[0] or len(result) <= 2:
+                        flag = 0
+                if flag == 0:
+                    results = results1
+                else:
+                    results = results2
         return results
 
     def check_continues(self, index_list: list):
