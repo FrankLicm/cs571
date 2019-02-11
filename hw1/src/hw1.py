@@ -31,13 +31,8 @@ class HashtagSegmenter(Component):
         """
         # initialize the n-grams
         ngram_filenames = glob.glob(os.path.join(resource_dir, '[1-2]gram.txt'))
-        two_char_word_file = glob.glob(os.path.join(resource_dir, 'twocharword.txt'))
-        self.two_char_words = []
-        for filename in two_char_word_file:
-            with open(filename) as st:
-                for line in st:
-                    self.two_char_words.append(line.strip("\n"))
-        #print(self.two_char_words)
+        self.two_char_words = ["am", "an", "as", "at", "ax", "by", "do", "go", "he", "hi", "if", "in", "is", "it", "me",
+                               "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "tv"]
         self.parsedDict = {}
         # TODO: initialize resources
         self.n_grams = [{}, {}, {}, {}, {}, {}]
