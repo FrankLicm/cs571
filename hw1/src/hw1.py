@@ -519,7 +519,7 @@ class HashtagSegmenter(Component):
 
 
 if __name__ == '__main__':
-    resource_dir = "../res"
+    resource_dir = os.environ.get('RESOURCE')
     segmenter = HashtagSegmenter(resource_dir)
     total = correct = 0
     with open(os.path.join(resource_dir, 'hashtags.csv')) as fin:
