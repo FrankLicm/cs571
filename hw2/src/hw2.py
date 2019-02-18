@@ -137,7 +137,7 @@ class SentimentAnalyzer(Component):
                                      mode='max', save_weights_only=True)
         self.model.fit(np.array(trn_xss), np.array(trn_ys),
                        batch_size=self.batch_size, epochs=self.epochs,
-                       callbacks=[checkpoint], validation_data=(np.array(dev_xss), np.array(dev_ys)), verbose=0)
+                       callbacks=[checkpoint], validation_data=(np.array(dev_xss), np.array(dev_ys)), verbose=1)
 
     def build_model(self):
         inputs = Input(shape=(self.sentence_length,), dtype='float32')
@@ -147,7 +147,10 @@ class SentimentAnalyzer(Component):
 
         embedding_sentence = embedding_layer_setence(inputs)
         print(np.shape(embedding_sentence))
-        conv = Conv1D(self.filters, self.kernel_size, padding='valid', activation='relu')(embedding_sentence)
+        rnn_layer = LSTM(self.nb_hidden_unit, return_sequences=True, activation='tanh', dropout=self.dropout)
+        bi_rnn = Bidirectional(rnn_layer, merge_mode='sum')(embedding_sentence)
+        print(np.shape(bi_rnn))
+        conv = Conv1D(self.filters, self.kernel_size, padding='valid', activation='relu')(bi_rnn)
         print(np.shape(conv))
         att_vector = Lambda(self.attention, output_shape=(self.filters,))(conv)
         print(np.shape(att_vector))
@@ -196,12 +199,12 @@ class SentimentAnalyzer(Component):
 
 
 if __name__ == '__main__':
-    resource_dir = os.environ.get('RESOURCE')
+    resource_dir = "../res"
     sentiment_analyzer = SentimentAnalyzer(resource_dir)
     trn_data = tsv_reader(resource_dir, 'sst.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'sst.dev.tsv')
     tst_data = tsv_reader(resource_dir, 'sst.tst.tsv')
     sentiment_analyzer.train(trn_data, dev_data)
-    sentiment_analyzer.evaluate(tst_data)
-    sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))
-    sentiment_analyzer.evaluate(dev_data)
+    #sentiment_analyzer.evaluate(tst_data)
+    #sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))
+    #sentiment_analyzer.evaluate(dev_data)
