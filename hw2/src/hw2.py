@@ -14,8 +14,8 @@
 # limitations under the License.
 # ========================================================================
 import os
+import talos
 from typing import List, Tuple
-from elit.component import Component
 from elit.embedding import FastText
 from src.util import tsv_reader
 from keras.layers import Embedding, Input, TimeDistributed, SpatialDropout1D, Conv1D, GlobalMaxPooling1D,Activation,Concatenate, Dropout
@@ -35,7 +35,7 @@ from keras import backend as K
 from keras.engine.topology import Layer
 from keras.callbacks import ModelCheckpoint
 
-class SentimentAnalyzer(Component):
+class SentimentAnalyzer():
     def __init__(self, resource_dir: str, embedding_file='fasttext-200-180614.bin'):
         """
         Initializes all resources and the model.
@@ -49,7 +49,7 @@ class SentimentAnalyzer(Component):
         self.sentence_length = 267
         self.nb_classes = 5
         self.model_path = os.path.join(resource_dir, 'hw2-model')
-        self.epochs = 4
+        self.epochs = 7
         self.batch_size = 32
         self.kernel_size = 3
         self.nb_hidden_unit = 200
@@ -99,10 +99,9 @@ class SentimentAnalyzer(Component):
         trans_sentence = K.permute_dimensions(sentence, (0, 2, 1))
         match_score = K.tanh(dot([sentence, trans_sentence], (2, 1)))
         sentence_to_sentence_att = K.softmax(K.sum(match_score, axis=-1))
-        b_sum = K.sum(sentence_to_sentence_att, axis=1)
-        _b_sum = K.expand_dims(b_sum, 1)
-        beta = sentence_to_sentence_att / _b_sum
-        que_vector = dot([trans_sentence, beta], (2, 1))
+        sum = K.expand_dims(K.sum(sentence_to_sentence_att, axis=1), 1)
+        normalize = sentence_to_sentence_att / sum
+        que_vector = dot([trans_sentence, normalize], (2, 1))
         return que_vector
 
     def train(self, trn_data: List[Tuple[int, List[str]]], dev_data: List[Tuple[int, List[str]]], *args, **kwargs):
@@ -133,6 +132,16 @@ class SentimentAnalyzer(Component):
                     s_vec[i] = self.word_dict[words[i]]
             dev_xss.append(s_vec)
 
+        # # used for hyperparameter tunning
+        # p = {"hidden_unit": [100, 200, 300],
+        #      "filters": [64, 128, 256],
+        #      "kernel_size": [2, 3, 4]}
+        # talos.Scan(x=np.array(trn_xss), y=np.array(trn_ys),
+        #            dataset_name="hw2", experiment_no="007",
+        #            x_val=(np.array(dev_xss)), y_val=(np.array(dev_ys)),
+        #            params=p, model=self.lstm_cnn_attention)
+
+
         checkpoint = ModelCheckpoint(self.model_path, monitor='val_acc', verbose=1, save_best_only=True,
                                      mode='max', save_weights_only=True)
         self.model.fit(np.array(trn_xss), np.array(trn_ys),
@@ -148,7 +157,7 @@ class SentimentAnalyzer(Component):
         embedding_sentence = embedding_layer_setence(inputs)
         print(np.shape(embedding_sentence))
         rnn_layer = LSTM(self.nb_hidden_unit, return_sequences=True, activation='tanh', dropout=self.dropout)
-        bi_rnn = Bidirectional(rnn_layer, merge_mode='sum')(embedding_sentence)
+        bi_rnn = Bidirectional(rnn_layer, merge_mode='concat')(embedding_sentence)
         print(np.shape(bi_rnn))
         conv = Conv1D(self.filters, self.kernel_size, padding='valid', activation='relu')(bi_rnn)
         print(np.shape(conv))
@@ -156,12 +165,39 @@ class SentimentAnalyzer(Component):
         print(np.shape(att_vector))
         pool = GlobalMaxPooling1D()(conv)
         print(np.shape(pool))
-        # rnn_layer = LSTM(self.nb_hidden_unit, activation='tanh', dropout=self.dropout)
-        # bi_rnn = Bidirectional(rnn_layer, merge_mode='concat')(conv)
         merge_vectors = Concatenate()([att_vector, pool])
         classes = Dense(units=self.nb_classes, activation='softmax')(merge_vectors)
         self.model = Model(inputs=inputs, outputs=classes)
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    # # used for hyperparameter tunning
+    # def lstm_cnn_attention(self, x_train, y_train, x_val, y_val, params):
+    #     inputs = Input(shape=(self.sentence_length,), dtype='float32')
+    #     embedding_layer_setence = Embedding(self.vocabulary_size, self.embedding_size,
+    #                                         weights=[self.embedding_matrix],
+    #                                         input_length=self.sentence_length)
+    #
+    #     embedding_sentence = embedding_layer_setence(inputs)
+    #     print(np.shape(embedding_sentence))
+    #     rnn_layer = LSTM(params["hidden_unit"], return_sequences=True,
+    #                      activation='tanh', dropout=self.dropout,
+    #                      kernel_regularizer=regularizers.l2(0.00001))
+    #     bi_rnn = Bidirectional(rnn_layer, merge_mode='sum')(embedding_sentence)
+    #     print(np.shape(bi_rnn))
+    #     conv = Conv1D(params["filters"], params["kernel_size"], padding='valid', activation='relu')(bi_rnn)
+    #     print(np.shape(conv))
+    #     att_vector = Lambda(self.attention, output_shape=(self.filters,))(conv)
+    #     print(np.shape(att_vector))
+    #     pool = GlobalMaxPooling1D()(conv)
+    #     print(np.shape(pool))
+    #     merge_vectors = Concatenate()([att_vector, pool])
+    #     classes = Dense(units=self.nb_classes, activation='softmax', kernel_regularizer=regularizers.l2(0.00001))(merge_vectors)
+    #     model = Model(inputs=inputs, outputs=classes)
+    #     model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    #     his = model.fit(x_train, y_train,
+    #                     batch_size=self.batch_size, epochs=self.epochs,
+    #                     validation_data=(x_val, y_val), verbose=1)
+    #     return his, model
 
     def decode(self, data: List[Tuple[int, List[str]]], **kwargs) -> List[int]:
         """
@@ -199,12 +235,12 @@ class SentimentAnalyzer(Component):
 
 
 if __name__ == '__main__':
-    resource_dir = "../res"
+    resource_dir = os.environ.get('RESOURCE')
     sentiment_analyzer = SentimentAnalyzer(resource_dir)
     trn_data = tsv_reader(resource_dir, 'sst.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'sst.dev.tsv')
     tst_data = tsv_reader(resource_dir, 'sst.tst.tsv')
     sentiment_analyzer.train(trn_data, dev_data)
-    #sentiment_analyzer.evaluate(tst_data)
-    #sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))
-    #sentiment_analyzer.evaluate(dev_data)
+    sentiment_analyzer.load(os.path.join(resource_dir, 'hw2-model'))
+    sentiment_analyzer.evaluate(tst_data)
+    sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))

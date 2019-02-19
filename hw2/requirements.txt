@@ -2,3 +2,4 @@ elit==0.1.28
 pytest==4.1.1
 keras==2.2.4
 tensorflow==1.12.0
+theano==1.0.0

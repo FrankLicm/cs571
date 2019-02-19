@@ -19,4 +19,4 @@ RUN pip3 install -r requirements.txt
 RUN pip install pytest
 COPY src /app/src
 
-CMD ["python", "-m", "src.eval"]
+CMD ["python3", "-m", "src.eval"]

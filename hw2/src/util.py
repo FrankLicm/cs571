@@ -25,5 +25,5 @@ def tsv_reader(resource_dir: str, filename: str) -> List[Tuple[int, List[str]]]:
     :param filename:
     :return:
     """
-    with open(os.path.join(resource_dir, filename)) as fin:
+    with open(os.path.join(resource_dir, filename), "r", encoding="utf-8") as fin:
         return [(int(row[0]), row[1]) for row in csv.reader(fin, delimiter='\t')]
