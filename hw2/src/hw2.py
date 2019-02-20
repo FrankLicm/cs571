@@ -49,7 +49,7 @@ class SentimentAnalyzer():
         self.sentence_length = 267
         self.nb_classes = 5
         self.model_path = os.path.join(resource_dir, 'hw2-model')
-        self.epochs = 7
+        self.epochs = 10
         self.batch_size = 32
         self.kernel_size = 3
         self.nb_hidden_unit = 200
@@ -166,12 +166,16 @@ class SentimentAnalyzer():
         pool = GlobalMaxPooling1D()(conv)
         print(np.shape(pool))
         merge_vectors = Concatenate()([att_vector, pool])
+        print(np.shape(pool))
         classes = Dense(units=self.nb_classes, activation='softmax')(merge_vectors)
         self.model = Model(inputs=inputs, outputs=classes)
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     # # used for hyperparameter tunning
     # def lstm_cnn_attention(self, x_train, y_train, x_val, y_val, params):
+    #     print(params["hidden_unit"])
+    #     print(params["filters"])
+    #     print(params["kernel_size"])
     #     inputs = Input(shape=(self.sentence_length,), dtype='float32')
     #     embedding_layer_setence = Embedding(self.vocabulary_size, self.embedding_size,
     #                                         weights=[self.embedding_matrix],
@@ -179,19 +183,18 @@ class SentimentAnalyzer():
     #
     #     embedding_sentence = embedding_layer_setence(inputs)
     #     print(np.shape(embedding_sentence))
-    #     rnn_layer = LSTM(params["hidden_unit"], return_sequences=True,
-    #                      activation='tanh', dropout=self.dropout,
-    #                      kernel_regularizer=regularizers.l2(0.00001))
-    #     bi_rnn = Bidirectional(rnn_layer, merge_mode='sum')(embedding_sentence)
+    #     rnn_layer = LSTM(self.nb_hidden_unit, return_sequences=True, activation='tanh', dropout=self.dropout)
+    #     bi_rnn = Bidirectional(rnn_layer, merge_mode='concat')(embedding_sentence)
     #     print(np.shape(bi_rnn))
-    #     conv = Conv1D(params["filters"], params["kernel_size"], padding='valid', activation='relu')(bi_rnn)
+    #     conv = Conv1D(self.filters, self.kernel_size, padding='valid', activation='relu')(bi_rnn)
     #     print(np.shape(conv))
     #     att_vector = Lambda(self.attention, output_shape=(self.filters,))(conv)
     #     print(np.shape(att_vector))
     #     pool = GlobalMaxPooling1D()(conv)
     #     print(np.shape(pool))
     #     merge_vectors = Concatenate()([att_vector, pool])
-    #     classes = Dense(units=self.nb_classes, activation='softmax', kernel_regularizer=regularizers.l2(0.00001))(merge_vectors)
+    #     print(np.shape(pool))
+    #     classes = Dense(units=self.nb_classes, activation='softmax')(merge_vectors)
     #     model = Model(inputs=inputs, outputs=classes)
     #     model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     #     his = model.fit(x_train, y_train,
@@ -236,11 +239,14 @@ class SentimentAnalyzer():
 
 if __name__ == '__main__':
     resource_dir = os.environ.get('RESOURCE')
+    start = time.time()
     sentiment_analyzer = SentimentAnalyzer(resource_dir)
     trn_data = tsv_reader(resource_dir, 'sst.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'sst.dev.tsv')
-    tst_data = tsv_reader(resource_dir, 'sst.tst.tsv')
-    sentiment_analyzer.train(trn_data, dev_data)
+    tst_data = tsv_reader(resource_dir, 'stsa1.tst.tsv')
+    sentiment_analyzer.train(trn_data+dev_data, tst_data)
     sentiment_analyzer.load(os.path.join(resource_dir, 'hw2-model'))
-    sentiment_analyzer.evaluate(tst_data)
-    sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))
+    print(sentiment_analyzer.evaluate(tst_data))
+    end = time.time()
+    print(end - start)
+    #sentiment_analyzer.save(os.path.join(resource_dir, 'hw2-model'))
