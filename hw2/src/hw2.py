@@ -155,18 +155,18 @@ class SentimentAnalyzer():
                                             input_length=self.sentence_length)
 
         embedding_sentence = embedding_layer_setence(inputs)
-        print(np.shape(embedding_sentence))
+        #print(np.shape(embedding_sentence))
         rnn_layer = LSTM(self.nb_hidden_unit, return_sequences=True, activation='tanh', dropout=self.dropout)
         bi_rnn = Bidirectional(rnn_layer, merge_mode='concat')(embedding_sentence)
-        print(np.shape(bi_rnn))
+        #print(np.shape(bi_rnn))
         conv = Conv1D(self.filters, self.kernel_size, padding='valid', activation='relu')(bi_rnn)
-        print(np.shape(conv))
+        #print(np.shape(conv))
         att_vector = Lambda(self.attention, output_shape=(self.filters,))(conv)
-        print(np.shape(att_vector))
+        #print(np.shape(att_vector))
         pool = GlobalMaxPooling1D()(conv)
-        print(np.shape(pool))
+        #print(np.shape(pool))
         merge_vectors = Concatenate()([att_vector, pool])
-        print(np.shape(pool))
+        #print(np.shape(pool))
         classes = Dense(units=self.nb_classes, activation='softmax')(merge_vectors)
         self.model = Model(inputs=inputs, outputs=classes)
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -227,8 +227,8 @@ class SentimentAnalyzer():
         """
         gold_labels = [y for y, _ in data]
         auto_labels = self.decode(data)
-        print(gold_labels)
-        print(auto_labels)
+        #print(gold_labels)
+        #print(auto_labels)
         total = correct = 0
         for gold, auto in zip(gold_labels, auto_labels):
             if gold == auto:
