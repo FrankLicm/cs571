@@ -14,7 +14,6 @@
 # limitations under the License.
 # ========================================================================
 import os
-import talos
 from typing import List, Tuple
 from elit.embedding import FastText
 from src.util import tsv_reader
