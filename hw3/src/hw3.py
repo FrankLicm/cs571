@@ -18,10 +18,9 @@ from typing import List, Tuple
 import numpy as np
 from elit.component import Component
 from elit.embedding import FastText
-from keras.models import Model, load_model
+from keras.models import Model
 from keras.layers import TimeDistributed, Conv1D, Dense, Embedding, Input, Dropout, LSTM, Bidirectional, MaxPooling1D, \
     Flatten, concatenate
-from src.util import tsv_reader
 from keras.initializers import RandomUniform
 from keras.utils.generic_utils import Progbar
 from keras.preprocessing.sequence import pad_sequences
@@ -370,6 +369,28 @@ class NamedEntityRecognizer(Component):
         if (recall + precision) > 0:
             f1 = 2.0 * precision * recall / (precision + recall)
         return precision, recall, f1
+
+def tsv_reader(resource_dir: str, filename: str) -> List[Tuple[List[str], List[str]]]:
+    """
+    :param resource_dir:
+    :param filename:
+    :return:
+    """
+    with open(os.path.join(resource_dir, filename)) as fin:
+        labels, tokens = [], []
+        dat = []
+
+        for line in fin:
+            l = line.split()
+            if l:
+                labels.append(l[-1])
+                tokens.append(l[0])
+            elif tokens:
+                dat.append((labels, tokens))
+                labels, tokens = [], []
+
+        return dat
+
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
