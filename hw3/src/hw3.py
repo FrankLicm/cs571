@@ -372,7 +372,7 @@ class NamedEntityRecognizer(Component):
         return precision, recall, f1
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = 0
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     K.tensorflow_backend.set_session(tf.Session(config=config))
