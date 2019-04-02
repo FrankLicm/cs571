@@ -23,22 +23,23 @@ from keras.layers import TimeDistributed, Conv1D, Dense, Embedding, Input, Dropo
     Flatten, concatenate
 from src.util import tsv_reader
 from keras.initializers import RandomUniform
-from keras.optimizers import SGD, Nadam
 from keras.utils.generic_utils import Progbar
 from keras.preprocessing.sequence import pad_sequences
+from keras import backend as K
+import tensorflow as tf
 
 class NamedEntityRecognizer(Component):
-    def __init__(self, resource_dir: str, embedding_file='fasttext-200-180614.bin'):
+    def __init__(self, resource_dir: str, embedding_file='fasttext-50-180614.bin'):
         """
         Initializes all resources and the model.
         :param resource_dir: a path to the directory where resource files are located.
         """
         self.vsm = FastText(os.path.join(resource_dir, embedding_file))
-        self.embedding_size = 200
+        self.embedding_size = 50
         self.epochs = 80
-        self.dropout = 0.68
+        self.dropout = 0.5
         self.dropout_recurrent = 0.25
-        self.lstm_state_size = 275
+        self.lstm_state_size = 200
         self.conv_size = 3
         self.learning_rate = 0.0105
         self.batch_size = 32
@@ -220,21 +221,25 @@ class NamedEntityRecognizer(Component):
         words_input = Input(shape=(None,), dtype='int32', name='words_input')
         words = Embedding(input_dim=len(self.word_dict), output_dim=self.vsm.dim,
                           weights=[self.word_embedding_matrix],
-                          trainable=True)(words_input)
+                          trainable=False)(words_input)
         casing_input = Input(shape=(None,), dtype='int32', name='casing_input')
         casing = Embedding(output_dim=self.case_embedding_matrix.shape[1],
                            input_dim=self.case_embedding_matrix.shape[0],
                            weights=[self.case_embedding_matrix],
-                           trainable=True)(casing_input)
+                           trainable=False)(casing_input)
         character_input = Input(shape=(None, self.char_length,), name="Character_input")
         embed_char_out = TimeDistributed(
             Embedding(len(self.char_dict), 30, embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)),
             name="Character_embedding")(
             character_input)
-        dropout = Dropout(self.dropout)(embed_char_out)
+        # char_lstm_out = TimeDistributed(Bidirectional(LSTM(self.lstm_state_size,
+        #                    return_sequences=True,
+        #                    dropout=self.dropout,
+        #                    recurrent_dropout=self.dropout_recurrent
+        #                    ), name="BiLSTM"))(embed_char_out)
         conv1d_out = TimeDistributed(
             Conv1D(kernel_size=self.conv_size, filters=30, padding='same', activation='tanh', strides=1),
-            name="Convolution")(dropout)
+            name="Convolution")(embed_char_out)
         pool_out = TimeDistributed(MaxPooling1D(self.char_length), name="max_pooling")(conv1d_out)
         char = TimeDistributed(Flatten(), name="Flatten")(pool_out)
         char = Dropout(self.dropout)(char)
@@ -367,11 +372,15 @@ class NamedEntityRecognizer(Component):
         return precision, recall, f1
 
 if __name__ == '__main__':
-    resource_dir = os.environ.get('RESOURCE')
+    os.environ["CUDA_VISIBLE_DEVICES"] = 0
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    K.tensorflow_backend.set_session(tf.Session(config=config))
+    resource_dir = "../res"
     trn_data = tsv_reader(resource_dir, 'conll03.eng.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'conll03.eng.dev.tsv')
     tst_data = tsv_reader(resource_dir, 'conll03.eng.tst.tsv')
     sentiment_analyzer = NamedEntityRecognizer(resource_dir)
     sentiment_analyzer.train(trn_data, dev_data)
-    sentiment_analyzer.evaluate(tst_data)
-    sentiment_analyzer.save(os.path.join(resource_dir, 'hw3-model'))
+#    sentiment_analyzer.evaluate(tst_data)
+#    sentiment_analyzer.save(os.path.join(resource_dir, 'hw3-model'))
