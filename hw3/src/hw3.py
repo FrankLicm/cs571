@@ -18,6 +18,7 @@ from typing import List, Tuple
 import numpy as np
 from elit.component import Component
 from elit.embedding import FastText
+from src.util import tsv_reader
 from keras.models import Model
 from keras.layers import TimeDistributed, Conv1D, Dense, Embedding, Input, Dropout, LSTM, Bidirectional, MaxPooling1D, \
     Flatten, concatenate
@@ -35,10 +36,10 @@ class NamedEntityRecognizer(Component):
         """
         self.vsm = FastText(os.path.join(resource_dir, embedding_file))
         self.embedding_size = 50
-        self.epochs = 80
-        self.dropout = 0.5
+        self.epochs = 200
+        self.dropout = 0.68
         self.dropout_recurrent = 0.25
-        self.lstm_state_size = 200
+        self.lstm_state_size = 275
         self.conv_size = 3
         self.learning_rate = 0.0105
         self.batch_size = 32
@@ -231,13 +232,13 @@ class NamedEntityRecognizer(Component):
             Embedding(len(self.char_dict), 30, embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)),
             name="Character_embedding")(
             character_input)
-        # char_lstm_out = TimeDistributed(Bidirectional(LSTM(self.lstm_state_size,
-        #                    return_sequences=True,
-        #                    dropout=self.dropout,
-        #                    recurrent_dropout=self.dropout_recurrent
-        #                    ), name="BiLSTM"))(embed_char_out)
+        #char_lstm_out = TimeDistributed(Bidirectional(LSTM(self.char_length,
+        #                   return_sequences=True,
+        #                   dropout=self.dropout,
+        #                   recurrent_dropout=self.dropout_recurrent
+        #                   ), name="BiLSTM"))(embed_char_out)
         conv1d_out = TimeDistributed(
-            Conv1D(kernel_size=self.conv_size, filters=30, padding='same', activation='tanh', strides=1),
+            Conv1D(kernel_size=self.conv_size, filters=53, padding='same', activation='tanh', strides=1),
             name="Convolution")(embed_char_out)
         pool_out = TimeDistributed(MaxPooling1D(self.char_length), name="max_pooling")(conv1d_out)
         char = TimeDistributed(Flatten(), name="Flatten")(pool_out)
@@ -370,38 +371,15 @@ class NamedEntityRecognizer(Component):
             f1 = 2.0 * precision * recall / (precision + recall)
         return precision, recall, f1
 
-def tsv_reader(resource_dir: str, filename: str) -> List[Tuple[List[str], List[str]]]:
-    """
-    :param resource_dir:
-    :param filename:
-    :return:
-    """
-    with open(os.path.join(resource_dir, filename)) as fin:
-        labels, tokens = [], []
-        dat = []
-
-        for line in fin:
-            l = line.split()
-            if l:
-                labels.append(l[-1])
-                tokens.append(l[0])
-            elif tokens:
-                dat.append((labels, tokens))
-                labels, tokens = [], []
-
-        return dat
-
-
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
     K.tensorflow_backend.set_session(tf.Session(config=config))
-    resource_dir = "../res"
+    resource_dir = os.environ.get('RESOURCE')
     trn_data = tsv_reader(resource_dir, 'conll03.eng.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'conll03.eng.dev.tsv')
     tst_data = tsv_reader(resource_dir, 'conll03.eng.tst.tsv')
     sentiment_analyzer = NamedEntityRecognizer(resource_dir)
     sentiment_analyzer.train(trn_data, dev_data)
-#    sentiment_analyzer.evaluate(tst_data)
-#    sentiment_analyzer.save(os.path.join(resource_dir, 'hw3-model'))
+    sentiment_analyzer.evaluate(tst_data)
+    sentiment_analyzer.save(os.path.join(resource_dir, 'hw3-model'))
