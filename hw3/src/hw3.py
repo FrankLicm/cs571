@@ -27,6 +27,7 @@ from keras.utils.generic_utils import Progbar
 from keras.preprocessing.sequence import pad_sequences
 from keras import backend as K
 import tensorflow as tf
+from elit.eval import ChunkF1
 
 class NamedEntityRecognizer(Component):
     def __init__(self, resource_dir: str, embedding_file='fasttext-50-180614.bin'):
@@ -267,14 +268,13 @@ class NamedEntityRecognizer(Component):
             pred_labels.append(pred)
         return pred_labels, correct_labels
 
-    def decode(self, data: List[Tuple[List[str], List[str]]], **kwargs) -> List[int]:
+    def decode(self, data: List[Tuple[List[str], List[str]]], **kwargs) -> List[list]:
         """
         :param data:
         :param kwargs:
         :return: the list of predicted labels.
         """
         dataset = self.vectorize(data)
-        correct_labels = []
         pred_labels = []
         for i, data in enumerate(dataset):
             tokens, casing, char, labels = data
@@ -282,9 +282,8 @@ class NamedEntityRecognizer(Component):
             casing = np.asarray([casing])
             char = np.asarray([char])
             pred = self.model.predict([tokens, casing, char], verbose=False)[0]
-            pred = pred.argmax(axis=-1)  # Predict the classes
-            correct_labels.append(labels)
-            pred_labels.append(pred)
+            pred = pred.argmax(axis=-1)
+            pred_labels.append([self.label_id_dict[element] for element in list(pred)])
         return pred_labels
 
     def evaluate(self, data: List[Tuple[List[str], List[str]]], **kwargs) -> float:
@@ -293,83 +292,12 @@ class NamedEntityRecognizer(Component):
         :param kwargs:
         :return: the accuracy of this model.
         """
-        dataset = self.vectorize(data)
-        data_examples, data_len = self.generate_batches(dataset)
-        pred_labels, correct_labels = self.eval_dataset(data_examples)
-        pre_dev, rec_dev, f1_dev = self.f1(pred_labels, correct_labels)
-        return f1_dev
-
-    def f1(self, predictions, correct):
-        label_pred = []
-        for sentence in predictions:
-            label_pred.append([self.label_id_dict[element] for element in sentence])
-        label_correct = []
-        for sentence in correct:
-            label_correct.append([self.label_id_dict[element] for element in sentence])
-        assert (len(label_pred) == len(label_correct))
-        correct_count = 0
-        count = 0
-        for sentenceIdx in range(len(label_pred)):
-            predicted = label_pred[sentenceIdx]
-            correct = label_correct[sentenceIdx]
-            assert (len(predicted) == len(correct))
-            idx = 0
-            while idx < len(predicted):
-                if predicted[idx][0] == 'B':
-                    count += 1
-                    if predicted[idx] == correct[idx]:
-                        idx += 1
-                        correctly_found = True
-                        while idx < len(predicted) and predicted[idx][0] == 'I':
-                            if predicted[idx] != correct[idx]:
-                                correctly_found = False
-                            idx += 1
-                        if idx < len(predicted):
-                            if correct[idx][0] == 'I':
-                                correctly_found = False
-                        if correctly_found:
-                            correct_count += 1
-                    else:
-                        idx += 1
-                else:
-                    idx += 1
-        precision = 0
-        if count > 0:
-            precision = float(correct_count) / count
-        assert (len(label_correct) == len(label_pred))
-        correct_count = 0
-        count = 0
-        for sentenceIdx in range(len(label_correct)):
-            predicted = label_correct[sentenceIdx]
-            correct = label_pred[sentenceIdx]
-            assert (len(predicted) == len(correct))
-            idx = 0
-            while idx < len(predicted):
-                if predicted[idx][0] == 'B':
-                    count += 1
-                    if predicted[idx] == correct[idx]:
-                        idx += 1
-                        correctly_found = True
-                        while idx < len(predicted) and predicted[idx][0] == 'I':
-                            if predicted[idx] != correct[idx]:
-                                correctly_found = False
-                            idx += 1
-                        if idx < len(predicted):
-                            if correct[idx][0] == 'I':
-                                correctly_found = False
-                        if correctly_found:
-                            correct_count += 1
-                    else:
-                        idx += 1
-                else:
-                    idx += 1
-        recall = 0
-        if count > 0:
-            recall = float(correct_count) / count
-        f1 = 0
-        if (recall + precision) > 0:
-            f1 = 2.0 * precision * recall / (precision + recall)
-        return precision, recall, f1
+        preds = self.decode(data)
+        labels = [y for y, _ in data]
+        acc = ChunkF1()
+        for pred, label in zip(preds, labels):
+            acc.update(pred, label)
+        return float(acc.get()[1])
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
