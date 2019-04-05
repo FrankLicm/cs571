@@ -113,12 +113,9 @@ class NamedEntityRecognizer(Component):
         :return:
         """
         trn_dataset = self.vectorize(trn_data)
-        dev_dataset = self.vectorize(dev_data)
         trn_examples, trn_len = self.generate_batches(trn_dataset)
-        dev_examples, dev_len = self.generate_batches(dev_dataset)
         n_updates = 0
-        predLabels, correctLabels = self.eval_dataset(dev_examples)
-        pre_dev, rec_dev, f1_dev = self.f1(predLabels, correctLabels)
+        f1_dev = self.evaluate(dev_data)
         print('initial Dev accuracy: %.4f %%' % f1_dev)
         best_score =f1_dev
         for epoch in range(self.epochs):
@@ -129,8 +126,7 @@ class NamedEntityRecognizer(Component):
                 self.model.train_on_batch([tokens, casing, char], labels)
                 a.update(i)
             a.update(i + 1)
-            predLabels, correctLabels = self.eval_dataset(dev_examples)
-            pre_dev, rec_dev, f1_dev = self.f1(predLabels, correctLabels)
+            f1_dev = self.evaluate(dev_data)
             print('Dev accuracy: %.4f %%' % f1_dev)
             if f1_dev > best_score:
                 best_score = f1_dev
@@ -222,12 +218,12 @@ class NamedEntityRecognizer(Component):
         words_input = Input(shape=(None,), dtype='int32', name='words_input')
         words = Embedding(input_dim=len(self.word_dict), output_dim=self.vsm.dim,
                           weights=[self.word_embedding_matrix],
-                          trainable=False)(words_input)
+                          trainable=True)(words_input)
         casing_input = Input(shape=(None,), dtype='int32', name='casing_input')
         casing = Embedding(output_dim=self.case_embedding_matrix.shape[1],
                            input_dim=self.case_embedding_matrix.shape[0],
                            weights=[self.case_embedding_matrix],
-                           trainable=False)(casing_input)
+                           trainable=True)(casing_input)
         character_input = Input(shape=(None, self.char_length,), name="Character_input")
         embed_char_out = TimeDistributed(
             Embedding(len(self.char_dict), 30, embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)),
@@ -253,20 +249,6 @@ class NamedEntityRecognizer(Component):
         output = TimeDistributed(Dense(len(self.label_dict), activation='softmax'), name="Softmax_layer")(output)
         self.model = Model(inputs=[words_input, casing_input, character_input], outputs=[output])
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer="nadam")
-
-    def eval_dataset(self, dataset):
-        correct_labels = []
-        pred_labels = []
-        for i, data in enumerate(dataset):
-            tokens, casing, char, labels = data
-            tokens = np.asarray([tokens])
-            casing = np.asarray([casing])
-            char = np.asarray([char])
-            pred = self.model.predict([tokens, casing, char], verbose=False)[0]
-            pred = pred.argmax(axis=-1)
-            correct_labels.append(labels)
-            pred_labels.append(pred)
-        return pred_labels, correct_labels
 
     def decode(self, data: List[Tuple[List[str], List[str]]], **kwargs) -> List[list]:
         """
