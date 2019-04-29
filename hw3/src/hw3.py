@@ -52,10 +52,11 @@ class NamedEntityRecognizer(Component):
         self.sentence_length = 0
         self.label_dict = {}
         words = {}
-        for labels, sentence in self.trn_data + self.dev_data + self.tst_data:
+        for labels, sentence in self.trn_data + self.dev_data:
             for label in labels:
                 if label not in self.label_dict:
                     self.label_dict[label] = len(self.label_dict)
+        for labels, sentence in self.trn_data + self.dev_data + self.tst_data:
             for word in sentence:
                 lengc = len(word)
                 if lengc > self.char_length:
