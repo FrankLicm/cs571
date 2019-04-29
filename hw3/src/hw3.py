@@ -282,9 +282,6 @@ class NamedEntityRecognizer(Component):
         return float(acc.get()[1])
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    config = tf.ConfigProto()
-    K.tensorflow_backend.set_session(tf.Session(config=config))
     resource_dir = os.environ.get('RESOURCE')
     trn_data = tsv_reader(resource_dir, 'conll03.eng.trn.tsv')
     dev_data = tsv_reader(resource_dir, 'conll03.eng.dev.tsv')

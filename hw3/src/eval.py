@@ -6,9 +6,6 @@ from src.hw3 import NamedEntityRecognizer
 from src.util import tsv_reader
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    config = tf.ConfigProto()
-    K.tensorflow_backend.set_session(tf.Session(config=config))
     resource_dir = os.environ.get('RESOURCE')
     tst_data = tsv_reader(resource_dir, 'conll03.eng.tst.tsv')
     start = time()
