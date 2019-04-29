@@ -62,6 +62,8 @@ class NamedEntityRecognizer(Component):
                 if lengc > self.char_length:
                     self.char_length = lengc
                 words[word.lower()] = True
+        if 'XX' not in self.label_dict:
+            self.label_dict['XX'] = len(self.label_dict)
         self.label_id_dict = {v: k for k, v in self.label_dict.items()}
         self.word_dict = {}
         wordEmbeddings = []
